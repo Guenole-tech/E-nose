@@ -1,0 +1,5 @@
+# This directory is populated by running: python ml_pipeline/train.py
+# Generated files (gitignored):
+#   feature_extract.h
+#   rf_model.h
+#   svr_model.h

@@ -1,0 +1,152 @@
+version: "3.9"
+
+# =============================================================================
+# e-Nose Industrial Platform — Docker Compose
+#
+# Services:
+#   mosquitto  — Eclipse Mosquitto MQTT broker (QoS 0/1 pub/sub)
+#   gateway    — MQTT subscriber + data reconciliation + FastAPI REST
+#   dashboard  — Streamlit real-time monitoring dashboard
+#
+# Networks:
+#   enose-net  — Internal bridge; only the gateway needs external ports
+#
+# Volumes:
+#   mosquitto-data — Persistent MQTT session and retained messages
+#   mosquitto-log  — Broker logs
+#   model-cache    — Trained ML models (joblib) shared between gateway and training
+#
+# Usage:
+#   docker-compose up -d
+#   docker-compose logs -f gateway
+#   docker-compose exec gateway uvicorn --help
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Eclipse Mosquitto MQTT Broker
+  # ---------------------------------------------------------------------------
+  mosquitto:
+    image: eclipse-mosquitto:2.0.18
+    container_name: enose-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"     # MQTT (plain TCP) — restrict to LAN in production
+      - "9001:9001"     # MQTT over WebSocket (for browser clients)
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/config/passwd:/mosquitto/config/passwd:ro
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    networks:
+      - enose-net
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-p", "1883",
+             "-u", "enose", "-P", "enose_secret",
+             "-t", "enose/healthcheck", "-m", "ping", "--quiet"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Gateway: MQTT subscriber + data reconciliation + FastAPI REST API
+  # ---------------------------------------------------------------------------
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: enose-gateway
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    ports:
+      - "8000:8000"     # FastAPI REST API
+    environment:
+      MQTT_BROKER: mosquitto
+      MQTT_PORT:   "1883"
+      MQTT_USER:   enose
+      MQTT_PASS:   enose_secret
+      LOG_LEVEL:   info
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - model-cache:/app/saved_models:ro
+    networks:
+      - enose-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Streamlit Dashboard — real-time monitoring UI
+  # ---------------------------------------------------------------------------
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: enose-dashboard
+    restart: unless-stopped
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "8501:8501"     # Streamlit default port
+    environment:
+      GATEWAY_API_URL: http://gateway:8000
+      PYTHONUNBUFFERED: "1"
+    command:
+      ["streamlit", "run", "gateway/dashboard.py",
+       "--server.port=8501",
+       "--server.address=0.0.0.0",
+       "--server.headless=true",
+       "--browser.gatherUsageStats=false"]
+    networks:
+      - enose-net
+
+  # ---------------------------------------------------------------------------
+  # ML Training (one-shot job, does not stay up)
+  # Run with: docker-compose run --rm trainer
+  # ---------------------------------------------------------------------------
+  trainer:
+    image: python:3.11-slim
+    container_name: enose-trainer
+    profiles:
+      - training     # Only started explicitly: docker-compose --profile training up trainer
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - model-cache:/workspace/ml_pipeline/saved_models
+    command: >
+      bash -c "pip install -q numpy scikit-learn joblib &&
+               python ml_pipeline/train.py
+               --n-samples 10000
+               --output-dir firmware/src/ml
+               --save-models ml_pipeline/saved_models"
+    networks:
+      - enose-net
+
+# =============================================================================
+# Named volumes
+# =============================================================================
+volumes:
+  mosquitto-data:
+    name: enose-mosquitto-data
+  mosquitto-log:
+    name: enose-mosquitto-log
+  model-cache:
+    name: enose-model-cache
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  enose-net:
+    name: enose-network
+    driver: bridge

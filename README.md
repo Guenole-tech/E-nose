@@ -103,9 +103,12 @@ $$\hat{x}_{k|k-1} = \hat{x}_{k-1|k-1}$$
 $$P_{k|k-1} = P_{k-1|k-1} + Q$$
 
 **Update step:**
-$$K_k = \frac{P_{k|k-1}}{P_{k|k-1} + R}$$
-$$\hat{x}_{k|k} = \hat{x}_{k|k-1} + K_k\bigl(z_k - \hat{x}_{k|k-1}\bigr)$$
-$$P_{k|k} = (1 - K_k)\,P_{k|k-1}$$
+
+$$\begin{aligned}
+K_k &= \frac{P_{k\mid k-1}}{P_{k\mid k-1} + R} \\
+\hat{x}_{k\mid k} &= \hat{x}_{k\mid k-1} + K_k(z_k - \hat{x}_{k\mid k-1}) \\
+P_{k\mid k} &= (1 - K_k)P_{k\mid k-1}
+\end{aligned}$$
 
 Tuning: $Q = 10^{-5}$, $R = 10^{-3}$. The steady-state Kalman gain is:
 $$K_\infty = \frac{-R + \sqrt{R^2 + 4QR}}{2Q} \approx 0.095$$

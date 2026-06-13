@@ -146,11 +146,11 @@ For each measurement window of $T = 60$ time steps, 7 features are extracted per
 |---------|---------|-----------------|
 | `max_slope` | $\max_t \Delta\rho_t$ | Peak response rate |
 | `min_slope` | $\min_t \Delta\rho_t$ | Recovery rate |
-| `ss_mean` | $\frac{1}{10}\sum_{t=T-9}^{T}\rho_t$ | Equilibrium ratio |
+| `ss_mean` | $\displaystyle\frac{1}{10}\sum_{t=T-9}^{T}\rho_t$ | Equilibrium ratio |
 | `ss_std` | $\sigma(\rho_{T-9:T})$ | Equilibrium stability |
-| `auc_norm` | $\frac{1}{T}\int_0^T \rho\,dt$ | Cumulative response |
-| `t_half` | $t$ s.t. $\rho(t) = \frac{1+\rho_{ss}}{2}$ | Kinetic signature |
-| `peak_delta` | $\max_t |\rho_t - 1|$ | Peak sensitivity |
+| `auc_norm` | $\displaystyle\frac{1}{T}\int_0^T \rho\,dt$ | Cumulative response |
+| `t_half` | $\displaystyle t \text{ s.t. } \rho(t) = \frac{1+\rho_{ss}}{2}$ | Kinetic signature |
+| `peak_delta` | $\max_t \lvert\rho_t - 1\rvert$ | Peak sensitivity |
 | `ratio_chA_chB` | $\rho_{ss,A} / \rho_{ss,B}$ | Cross-selectivity |
 
 ### 3.2 Gas Classifier — Random Forest

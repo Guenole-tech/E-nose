@@ -99,8 +99,11 @@ $$x_k = x_{k-1} + w_k, \quad w_k \sim \mathcal{N}(0, Q)$$
 $$z_k = x_k + v_k, \quad v_k \sim \mathcal{N}(0, R)$$
 
 **Predict step:**
-$$\hat{x}_{k|k-1} = \hat{x}_{k-1|k-1}$$
-$$P_{k|k-1} = P_{k-1|k-1} + Q$$
+
+$$\begin{aligned}
+\hat{x}_{k\mid k-1} &= \hat{x}_{k-1\mid k-1} \\
+P_{k\mid k-1} &= P_{k-1\mid k-1} + Q
+\end{aligned}$$
 
 **Update step:**
 
